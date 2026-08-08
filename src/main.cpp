@@ -1,7 +1,7 @@
 /*
  * SmallOLED-PCMonitor - Main Entry Point
  *
- * ESP32-C3 with SSD1306/SH1106 OLED display
+ * ESP32-S3 Super Mini with ST7735 160x128 TFT display
  * Dual-mode: PC monitoring metrics OR animated clock displays
  */
 
@@ -26,7 +26,9 @@
 #include <Wire.h>
 #endif
 
-#if DISPLAY_TYPE == 2
+#if DISPLAY_TYPE == 3
+#include "display/st7735_display.h"
+#elif DISPLAY_TYPE == 2
 #include "display/ch1116.h"  // For 1.54" CH1116 (SH1106-compatible, 1-col offset)
 #elif DISPLAY_TYPE == 1
 #include <Adafruit_SH110X.h> // For 1.3" SH1106
@@ -35,7 +37,6 @@
 #endif
 #include <ArduinoJson.h>
 #include <Update.h>
-#include <esp_system.h>
 #include <esp_task_wdt.h>
 #include <time.h>
 
@@ -50,7 +51,12 @@ extern WebServer server;         // Defined in web.cpp
 extern Preferences preferences;  // Defined in settings.cpp
 
 // ========== Display Object ==========
-#if DISPLAY_TYPE == 2
+#if DISPLAY_TYPE == 3
+  // ST7735 TFT, configured as a 160x128 landscape display in initDisplay().
+  ST7735Display display(SPI_CS_PIN, SPI_DC_PIN, SPI_RST_PIN);
+  #define DISPLAY_WHITE ST77XX_WHITE
+  #define DISPLAY_BLACK ST77XX_BLACK
+#elif DISPLAY_TYPE == 2
   // CH1116 display (1.54", SH1106-compatible with corrected column offset)
   #if DISPLAY_INTERFACE == 1
     Adafruit_CH1116 display(SCREEN_WIDTH, SCREEN_HEIGHT, &SPI, SPI_DC_PIN, SPI_RST_PIN, SPI_CS_PIN);
@@ -113,22 +119,6 @@ int getOptimalRefreshRate();
 
 // ========== Helper Functions ==========
 
-const char* getResetReasonName() {
-  switch (esp_reset_reason()) {
-    case ESP_RST_POWERON:  return "POWERON";
-    case ESP_RST_EXT:      return "EXT";
-    case ESP_RST_SW:       return "SW";
-    case ESP_RST_PANIC:    return "PANIC";
-    case ESP_RST_INT_WDT:  return "INT_WDT";
-    case ESP_RST_TASK_WDT: return "TASK_WDT";
-    case ESP_RST_WDT:      return "WDT";
-    case ESP_RST_DEEPSLEEP:return "DEEPSLEEP";
-    case ESP_RST_BROWNOUT: return "BROWNOUT";
-    case ESP_RST_SDIO:     return "SDIO";
-    default:               return "UNKNOWN";
-  }
-}
-
 // Helper function to get time with short timeout
 bool getTimeWithTimeout(struct tm *timeinfo, unsigned long timeout_ms) {
   if (!ntpSynced) {
@@ -169,14 +159,14 @@ int getOptimalRefreshRate() {
          settings.clockStyle == 6 || settings.clockStyle == 7 ||
          settings.clockStyle == 8 || settings.clockStyle == 9 ||
          settings.clockStyle == 10 || settings.clockStyle == 11)) {
-      return 60; // Instant boost for smooth manual clock mode
+      return 20; // Buffered ST7735 refresh limit
     }
 #endif
 
     // Check for animation boost (smooth animations during active motion)
     if (settings.boostAnimationRefresh && isAnimationActive()) {
       // Animation is happening - boost to 40 Hz for silky smooth motion!
-      return 60;
+      return 20;
     }
 
     if (settings.clockStyle == 0 || settings.clockStyle == 3 ||
@@ -201,13 +191,6 @@ int lastMinuteBlock = -1;
 int currentScreen = 0;
 bool firstTimeSynced = false;
 
-// Animated clocks fire their minute-change animation at :56 and it runs on into
-// the next minute, so switching screens the instant the 5-minute block rolls
-// over clipped the animation every single time. Hold the switch back a few
-// seconds and let it land first.
-const int CYCLE_MIN_SEC = 10;  // grace for the outgoing animation to finish
-const int CYCLE_MAX_SEC = 30;  // cap so a stuck override can never wedge the cycle
-
 void cycleClockScreens() {
     struct tm timeinfo;
 
@@ -224,13 +207,8 @@ void cycleClockScreens() {
             firstTimeSynced = true;
         }
 
-        // After that, normal cycling. The block change is not consumed until
-        // the switch actually happens, so the condition simply stays true until
-        // the grace window opens. time_overridden covers every animated style
-        // except Pong, whose transition is long finished by CYCLE_MIN_SEC.
-        if (minuteBlock != lastMinuteBlock &&
-            timeinfo.tm_sec >= CYCLE_MIN_SEC &&
-            (!time_overridden || timeinfo.tm_sec >= CYCLE_MAX_SEC)) {
+        // After that, normal cycling
+        if (minuteBlock != lastMinuteBlock) {
             lastMinuteBlock = minuteBlock;
             currentScreen = (currentScreen + 1) % 10; // Cycle through all 10 clock styles
             resetClockAnimationState(); // Reset animation state when changing screens
@@ -256,8 +234,6 @@ void cycleClockScreens() {
 void setup() {
   Serial.begin(115200);
   delay(1000);
-
-  Serial.printf("Boot reason: %s\n", getResetReasonName());
 
   // Load settings from flash
   loadSettings();
@@ -337,12 +313,6 @@ void setup() {
   // Initialize NTP
   initNTP();
 
-  // Apply the dimming schedule as soon as there is a clock to evaluate it
-  // against. Boot brightness above is applied before WiFi/NTP, so without this
-  // a restart inside a scheduled-off window lit the panel until the first
-  // periodic check a minute later.
-  refreshDisplayBrightnessNow();
-
   // Initialize WiFi connection status flag
   wifiConnected = (WiFi.status() == WL_CONNECTED);
 
@@ -364,10 +334,8 @@ void setup() {
   initTouchButton();
 #endif
 
-  // Show IP address for 5 seconds (configurable via web interface). Skipped
-  // when the schedule wants the panel dark, so a restart at night does not
-  // light the room for five seconds.
-  if (displayAvailable && settings.showIPAtBoot && !scheduledDisplayIsOff()) {
+  // Show IP address for 5 seconds (configurable via web interface)
+  if (displayAvailable && settings.showIPAtBoot) {
     displayConnected();
     delay(5000);
   }
@@ -481,9 +449,6 @@ void loop() {
     if (getLocalTime(&now_tm, 10)) {
       syncDisplayedTime(&now_tm);
     }
-    // Time just became usable - settle the dimming schedule now rather than
-    // waiting for the next periodic check.
-    refreshDisplayBrightnessNow();
   }
   prevNtpSynced = ntpSynced;
 
