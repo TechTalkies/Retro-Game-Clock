@@ -13,7 +13,9 @@
 
 // ========== Common Digit Positioning ==========
 // Standard digit X positions for time display (18px spacing, starting at 19)
-const int DIGIT_X[5] = {19, 37, 55, 73, 91};
+// Five 30-pixel-wide characters (Adafruit font at size 5) fill the native
+// 160-pixel ST7735 width with a small, even margin.
+const int DIGIT_X[5] = {5, 35, 65, 95, 125};
 
 // Progressive fragmentation: spawn 25%, then 50%, then 25%
 const float FRAGMENT_SPAWN_PERCENT[3] = {0.25, 0.50, 0.25};
@@ -23,7 +25,7 @@ MarioState mario_state = MARIO_IDLE;
 float mario_x = MARIO_START_X;
 float mario_jump_y = 0.0;
 float jump_velocity = 0.0;
-int mario_base_y = 62;
+int mario_base_y = 112;
 bool mario_facing_right = true;
 int mario_walk_frame = 0;
 unsigned long last_mario_update = 0;
@@ -62,7 +64,7 @@ unsigned long nextEncounterDelay = 15000;
 // ========== Space Clock Globals ==========
 SpaceState space_state = SPACE_PATROL;
 float space_x = SCREEN_CENTER_X;
-const float space_y = 56;  // Fixed Y position at bottom
+const float space_y = 120;  // Fixed Y position at bottom (SCREEN_HEIGHT(128) - 8px margin)
 int space_anim_frame = 0;
 int space_patrol_direction = 1;
 unsigned long last_space_update = 0;
@@ -90,7 +92,7 @@ int paddle_last_x = SCREEN_CENTER_X;
 // ========== Pac-Man Clock Globals ==========
 PacmanState pacman_state = PACMAN_PATROL;
 float pacman_x = 30.0;
-float pacman_y = 56.0;  // Bottom patrol line
+float pacman_y = 120.0;  // Bottom patrol line
 int pacman_direction = 1;
 int pacman_mouth_frame = 0;
 unsigned long last_pacman_update = 0;

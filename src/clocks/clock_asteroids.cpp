@@ -27,11 +27,11 @@
 #include <math.h>
 
 // ========== Layout / tuning ==========
-#define AST_TIME_Y_TOP 16        // digit top when the date row is shown
-#define AST_TIME_Y_CENTER 21     // digit top when centred (date off)
+#define AST_TIME_Y_TOP 44
+#define AST_TIME_Y_CENTER 44
 #define AST_TRIGGER_SECOND 56
-#define AST_DIGIT_W 16           // size-3 digit box width
-#define AST_DIGIT_H 21           // size-3 digit box height
+#define AST_DIGIT_W 28
+#define AST_DIGIT_H 39
 #define AST_MAX_ROCKS 8          // pool: configured count + split children
 #define AST_ROCK_VERTS 7
 #define AST_MAX_SHARDS 14
@@ -164,14 +164,14 @@ static void astSpawnRock() {
     r.big = true;
     int edge = random(0, 4);
     switch (edge) {
-      case 0:  r.x = -8;                 r.y = astRandf(8, 56);  break;
-      case 1:  r.x = SCREEN_WIDTH + 8;   r.y = astRandf(8, 56);  break;
-      case 2:  r.x = astRandf(8, 120);   r.y = -8;               break;
-      default: r.x = astRandf(8, 120);   r.y = SCREEN_HEIGHT + 8; break;
+      case 0:  r.x = -8;                 r.y = astRandf(8, SCREEN_HEIGHT - 8);  break;
+      case 1:  r.x = SCREEN_WIDTH + 8;   r.y = astRandf(8, SCREEN_HEIGHT - 8);  break;
+      case 2:  r.x = astRandf(8, SCREEN_WIDTH - 8);   r.y = -8;               break;
+      default: r.x = astRandf(8, SCREEN_WIDTH - 8);   r.y = SCREEN_HEIGHT + 8; break;
     }
     float speed = 10.0f * (settings.asteroidsRockSpeed / 10.0f);
     // Head loosely toward the screen centre so the rock actually enters view
-    float ang = atan2f(32.0f - r.y, 64.0f - r.x) + astRandf(-0.6f, 0.6f);
+    float ang = atan2f((SCREEN_HEIGHT / 2.0f) - r.y, (SCREEN_WIDTH / 2.0f) - r.x) + astRandf(-0.6f, 0.6f);
     r.vx = cosf(ang) * speed;
     r.vy = sinf(ang) * speed;
     r.angle = astRandf(0, TWO_PI);
@@ -652,7 +652,7 @@ void displayClockWithAsteroids() {
   // Time digits (size 3). Mask each visible digit's box so the space layer
   // reads as flying *behind* the time, then print the glyph. The digit
   // being shattered stays hidden until its debris clears.
-  display.setTextSize(3);
+  display.setTextSize(5);
   char dch[5];
   dch[0] = '0' + displayed_hour / 10;
   dch[1] = '0' + displayed_hour % 10;
@@ -702,7 +702,7 @@ void displayClockWithAsteroids() {
     display.setCursor(dateX, 4);
     display.print(dateStr);
   }
-  drawMeridiemIndicator(110, 4, displayed_is_pm);
+  drawMeridiemIndicator(140, 4, displayed_is_pm);
 
   if (!wifiConnected) drawNoWiFiIcon(0, 0);
 }

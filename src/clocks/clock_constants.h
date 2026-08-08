@@ -29,9 +29,9 @@
 #define SPACE_EXPLOSION_FRAMES 5
 
 // ========== Digit Positioning ==========
-// Standard digit X positions (18px spacing, starting at 19)
-#define DIGIT_SPACING_PX 18
-#define DIGIT_START_X 19
+// Native ST7735 digit positions (30px spacing for 5x text).
+#define DIGIT_SPACING_PX 30
+#define DIGIT_START_X 5
 
 // ========== Common Values ==========
 // Movement threshold (considered "at target" when within this distance)
@@ -41,9 +41,9 @@
 #define MARIO_TARGET_PROXIMITY 3
 
 // Date display width calculation (for centering)
-#define DATE_DISPLAY_WIDTH 60
+#define DATE_DISPLAY_WIDTH 120 // 5 chars * 24px (textSize 2) = 120px
 
 // Screen center X position
-#define SCREEN_CENTER_X 64
+#define SCREEN_CENTER_X (SCREEN_WIDTH / 2)
 
 #endif // CLOCK_CONSTANTS_H
