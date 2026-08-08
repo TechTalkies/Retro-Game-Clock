@@ -151,7 +151,6 @@ void handleDeviceInfo() {
  doc["rssi"] = WiFi.RSSI();
  doc["uptime"] = millis() / 1000;
  doc["freeHeap"] = ESP.getFreeHeap();
- doc["resetReason"] = getResetReasonName();
  doc["model"] = "SmallOLED";
 
  String json;
@@ -175,10 +174,7 @@ void handleStatus() {
  bool showStats = pcOnline && !httpForceClock;
 #endif
 
- // Report what the panel is actually doing, not what the configured brightness
- // says: scheduled dimming can have driven it to 0 while displayBrightness is
- // still the daytime value.
- doc["displayOn"] = !isDisplayForcedOff() && getLastAppliedBrightness() > 0;
+ doc["displayOn"] = !isDisplayForcedOff() && settings.displayBrightness > 0;
  doc["forcedOff"] = isDisplayForcedOff();
  doc["mode"] = showStats ? "metrics" : "clock";
  doc["forcedClock"] = httpForceClock;

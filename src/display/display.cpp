@@ -12,11 +12,8 @@
 
 // Track last applied brightness to avoid unnecessary updates
 static uint8_t lastAppliedBrightness = 255;
+static unsigned long lastBrightnessCheck = 0;
 const unsigned long BRIGHTNESS_CHECK_INTERVAL = 60000; // Check every minute
-// Short retry when the schedule could not be evaluated (NTP not synced yet).
-// Without this a failed check costs a full BRIGHTNESS_CHECK_INTERVAL, which is
-// how a reboot inside a lights-out window left the panel lit for a whole minute.
-const unsigned long BRIGHTNESS_RETRY_INTERVAL = 2000;
 
 // Runtime override: when true, the panel is held off (e.g. via HTTP /api/display/off).
 // Scheduled dimming and brightness re-applies are suppressed so they don't turn it back on.
@@ -31,7 +28,9 @@ const uint8_t TEMPORARY_WAKE_BRIGHTNESS = 20;
 #endif
 
 static void setDisplayPower(bool on) {
-#if DISPLAY_TYPE == 1 || DISPLAY_TYPE == 2
+#if DISPLAY_TYPE == 3
+  display.enableDisplay(on);
+#elif DISPLAY_TYPE == 1 || DISPLAY_TYPE == 2
   display.oled_command(on ? 0xAF : 0xAE);
 #else
   display.ssd1306_command(on ? SSD1306_DISPLAYON : SSD1306_DISPLAYOFF);
@@ -39,7 +38,11 @@ static void setDisplayPower(bool on) {
 }
 
 static void setDisplayContrast(uint8_t brightness) {
-#if DISPLAY_TYPE == 1 || DISPLAY_TYPE == 2
+#if DISPLAY_TYPE == 3
+  // ST7735 brightness requires a separately wired PWM backlight pin; the
+  // controller itself has no contrast register.
+  (void)brightness;
+#elif DISPLAY_TYPE == 1 || DISPLAY_TYPE == 2
   display.setContrast(brightness);
 #else
   display.ssd1306_command(SSD1306_SETCONTRAST);
@@ -64,28 +67,20 @@ static void applyBrightnessLevel(uint8_t brightness) {
   lastAppliedBrightness = brightness;
 }
 
-// Resolve the brightness the schedule currently calls for. Reports the window
-// verdict separately from the resolved value: the two brightness levels may be
-// equal, so the value alone cannot tell a caller whether dimming is in effect.
-// Returns false when there is no valid time to evaluate against.
-static bool resolveScheduledBrightness(uint8_t &targetBrightness,
-                                       bool &isDimPeriod) {
+static bool resolveScheduledBrightnessTarget(uint8_t &targetBrightness) {
   targetBrightness = sanitizeBrightnessValue(settings.displayBrightness);
-  isDimPeriod = false;
 
   if (!settings.enableScheduledDimming) {
     return true;
   }
 
   struct tm timeinfo;
-  // Timeout 0: read the clock once and report. The default is a 5-second
-  // blocking wait for time to become valid, which would stall the loop on
-  // every 2s retry while NTP is still unsynced.
-  if (!getLocalTime(&timeinfo, 0)) {
+  if (!getLocalTime(&timeinfo)) {
     return false;
   }
 
   const uint8_t currentHour = timeinfo.tm_hour;
+  bool isDimPeriod = false;
 
   if (settings.dimStartHour == settings.dimEndHour) {
     isDimPeriod = false;
@@ -102,19 +97,16 @@ static bool resolveScheduledBrightness(uint8_t &targetBrightness,
   return true;
 }
 
-static bool resolveScheduledBrightnessTarget(uint8_t &targetBrightness) {
-  bool isDimPeriod = false;
-  return resolveScheduledBrightness(targetBrightness, isDimPeriod);
-}
-
 // Initialize display - returns true on success
 bool initDisplay() {
 #if DISPLAY_INTERFACE == 1
-  // SPI mode - remap ESP32-C3 SPI bus to our chosen pins
+  // SPI mode - remap ESP32-S3 SPI bus to our chosen pins
   SPI.begin(SPI_SCK_PIN, -1, SPI_MOSI_PIN, SPI_CS_PIN);
 
   for (int attempt = 0; attempt < 3; attempt++) {
-  #if DISPLAY_TYPE == 1 || DISPLAY_TYPE == 2
+  #if DISPLAY_TYPE == 3
+    if (display.begin()) return true;
+  #elif DISPLAY_TYPE == 1 || DISPLAY_TYPE == 2
     if (display.begin(0, true)) {  // SH1106/CH1116 SPI: address ignored, reset=true
       display.setContrast(255);
       return true;
@@ -164,27 +156,26 @@ void applyDisplayBrightness() {
   applyBrightnessLevel(settings.displayBrightness);
 }
 
-bool refreshDisplayBrightnessNow() {
+void refreshDisplayBrightnessNow() {
 #if TOUCH_BUTTON_ENABLED
   if (temporaryWakeActive) {
-    return true;
+    return;
   }
 #endif
 
   if (displayForcedOff) {
-    return true;
+    return;
   }
 
   uint8_t targetBrightness = settings.displayBrightness;
   if (settings.enableScheduledDimming &&
       !resolveScheduledBrightnessTarget(targetBrightness)) {
-    return false;
+    return;
   }
 
   if (lastAppliedBrightness != targetBrightness) {
     applyBrightnessLevel(targetBrightness);
   }
-  return true;
 }
 
 // Check and apply time-based brightness (scheduled dimming)
@@ -199,35 +190,14 @@ void checkScheduledBrightness() {
     return;
   }
 
-  // The first check runs immediately - waiting a full interval after boot is
-  // what left the panel lit for a minute when the device restarted inside a
-  // scheduled-off window. Afterwards check once a minute, or retry quickly
-  // while the time is still unavailable.
-  static bool firstCheckDone = false;
-  static unsigned long nextBrightnessCheck = 0;
-
-  if (firstCheckDone && (long)(millis() - nextBrightnessCheck) < 0) {
+  // Only check every minute to avoid unnecessary updates
+  unsigned long currentTime = millis();
+  if (currentTime - lastBrightnessCheck < BRIGHTNESS_CHECK_INTERVAL) {
     return;
   }
-  firstCheckDone = true;
+  lastBrightnessCheck = currentTime;
 
-  bool resolved = refreshDisplayBrightnessNow();
-  nextBrightnessCheck =
-      millis() + (resolved ? BRIGHTNESS_CHECK_INTERVAL : BRIGHTNESS_RETRY_INTERVAL);
-}
-
-// True only when the time is valid and the schedule calls for a dark panel.
-bool scheduledDisplayIsOff() {
-  uint8_t targetBrightness = 0;
-  bool isDimPeriod = false;
-  if (!resolveScheduledBrightness(targetBrightness, isDimPeriod)) {
-    return false;  // unknown time - never blank on a guess
-  }
-  return targetBrightness == 0;
-}
-
-uint8_t getLastAppliedBrightness() {
-  return lastAppliedBrightness;
+  refreshDisplayBrightnessNow();
 }
 
 // ---- Runtime display power / brightness control (HTTP API) ----

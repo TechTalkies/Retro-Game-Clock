@@ -14,41 +14,34 @@
 
 // ========== Display Configuration ==========
 // Display type:
-//   0 = SSD1306 (0.96" OLED, common small displays)
-//   1 = SH1106  (1.3" OLED, larger displays - has 132x64 RAM with 2-col offset)
-//   2 = CH1116  (1.54" OLED, SH1106-compatible but uses no column offset)
+//   3 = ST7735 160x128 colour TFT (SPI, landscape)
 //
-// Note: 2.42" SSD1309 panels use the SSD1306 driver, so leave this at 0 for
-// those as well - there is no separate display type for them.
-//
-// CHANGE THIS VALUE to match your OLED display type!
-#define DEFAULT_DISPLAY_TYPE 0
+// This project is configured for an ST7735 TFT.  The display type is kept as
+// a build-time setting so custom PlatformIO environments can override it.
+#define DEFAULT_DISPLAY_TYPE 3
 
-// I2C pins for ESP32-C3
+// Legacy I2C pins (unused by the ST7735 SPI configuration)
 #define I2C_SDA_PIN 8
 #define I2C_SCL_PIN 9
 
-// Screen dimensions
-#define SCREEN_WIDTH 128
-#define SCREEN_HEIGHT 64
-
-// I2C Address (typically 0x3C, some displays use 0x3D)
-#define DISPLAY_I2C_ADDRESS 0x3C
+// Native ST7735 landscape resolution.  Rendering uses these dimensions
+// directly; no scaling is performed.
+#define SCREEN_WIDTH 160
+#define SCREEN_HEIGHT 128
 
 // ========== Display Interface ==========
 // Interface type:
-//   0 = I2C (default, uses SDA/SCL pins above)
-//   1 = SPI (uses SPI pins below, faster refresh for animations)
+//   1 = SPI (required by ST7735; uses SPI pins below)
 //
-// CHANGE THIS VALUE to use SPI instead of I2C
-#define DISPLAY_INTERFACE 0
+// ST7735 has no I2C interface.
+#define DISPLAY_INTERFACE 1
 
-// SPI pins for ESP32-C3 (only used when DISPLAY_INTERFACE = 1)
-#define SPI_MOSI_PIN 6 //SDA
-#define SPI_SCK_PIN  4 //SCK SPI Clock
-#define SPI_CS_PIN   5 //CS (Chip Select)
-#define SPI_DC_PIN   3 //DC (Data/Command)
-#define SPI_RST_PIN  10   //RES Set to -1 if RST is not connected
+// SPI pins for ESP32-S3 Super Mini (used by the ST7735)
+#define SPI_MOSI_PIN 3 // TFT SDA / MOSI
+#define SPI_SCK_PIN 2  // TFT SCK
+#define SPI_CS_PIN 6   // TFT CS
+#define SPI_DC_PIN 4   // TFT A0 / DC
+#define SPI_RST_PIN 5  // TFT RES; set to -1 when connected to ESP reset
 
 // ========== WiFi Configuration ==========
 // Access Point name for initial setup.
@@ -97,25 +90,25 @@
 // - Medium press (500ms-1s, release): Toggle LED night light on/off
 // - Long hold (> 1s): Ramp LED brightness up/down (gamma-corrected)
 // Note: If TTP223 is not connected, GPIO 7 just floats harmlessly
-#define TOUCH_BUTTON_ENABLED 1           // 1 = enabled, 0 = disabled (always enabled now)
-#define TOUCH_BUTTON_PIN 7               // GPIO pin for TTP223 signal (default: GPIO 7)
-#define TOUCH_DEBOUNCE_MS 50            // Debounce delay in milliseconds (default: 100ms)
-#define TOUCH_ACTIVE_LEVEL HIGH          // HIGH = active HIGH, LOW = active LOW (TTP223 default: HIGH)
+#define TOUCH_BUTTON_ENABLED 1  // 1 = enabled, 0 = disabled (always enabled now)
+#define TOUCH_BUTTON_PIN 7      // GPIO pin for TTP223 signal (default: GPIO 7)
+#define TOUCH_DEBOUNCE_MS 50    // Debounce delay in milliseconds (default: 100ms)
+#define TOUCH_ACTIVE_LEVEL HIGH // HIGH = active HIGH, LOW = active LOW (TTP223 default: HIGH)
 
 // ========== LED PWM Night Light Configuration ==========
 // Filament LED night light control via GPIO 1 and 2N2222 transistor
 // Gesture-based control using TTP223 touch button
-#define LED_PWM_ENABLED 1                // 1 = enabled, 0 = disabled (default: 0)
-#define LED_PWM_PIN 1                    // GPIO pin for PWM LED control (GPIO 1)
-#define LED_PWM_CHANNEL 0                // PWM channel (0-15)
-#define LED_PWM_FREQ 5000                // PWM frequency in Hz
-#define LED_PWM_RESOLUTION 8             // 8-bit resolution (0-255 brightness levels)
+#define LED_PWM_ENABLED 0    // 1 = enabled, 0 = disabled (default: 0)
+#define LED_PWM_PIN 1        // GPIO pin for PWM LED control (GPIO 1)
+#define LED_PWM_CHANNEL 0    // PWM channel (0-15)
+#define LED_PWM_FREQ 5000    // PWM frequency in Hz
+#define LED_PWM_RESOLUTION 8 // 8-bit resolution (0-255 brightness levels)
 
 // ========== QR Code Setup Configuration ==========
 // Display QR code during WiFi AP setup for easy mobile connection
 // When enabled: OLED shows scannable QR code instead of text instructions
 // When disabled: Traditional text instructions (original behavior)
-#define QR_SETUP_ENABLED 0               // 1 = QR code, 0 = text instructions
+#define QR_SETUP_ENABLED 0 // 1 = QR code, 0 = text instructions
 
 // ========== BLE WiFi Setup Configuration ==========
 // Bluetooth Low Energy provisioning for the SmallOLED Android app.
@@ -126,8 +119,8 @@
 // When disabled: original WiFiManager AP portal (PCMonitor-Setup) is used.
 //
 // IMPORTANT: Requires min_spiffs.csv partition table (set in platformio.ini).
-#define BLE_SETUP_ENABLED 0              // 1 = BLE provisioning, 0 = AP mode (default)
-#define BLE_DEVICE_NAME "SmallOLED"      // BLE advertised name (shown in Android app scan)
+#define BLE_SETUP_ENABLED 0         // 1 = BLE provisioning, 0 = AP mode (default)
+#define BLE_DEVICE_NAME "SmallOLED" // BLE advertised name (shown in Android app scan)
 
 // ========== Improv-Serial WiFi Setup (Web Flasher) ==========
 // In-browser WiFi provisioning over USB serial, used by the web flasher at
@@ -140,7 +133,7 @@
 //
 // Keep this ENABLED for the released web-flasher binaries so they are
 // WiFi-push capable. Costs nothing if no browser is listening.
-#define IMPROV_SETUP_ENABLED 1           // 1 = Improv-Serial WiFi push, 0 = AP portal only
-#define IMPROV_SETUP_WINDOW_MS 180000    // 3-min Improv listen window on first boot
+#define IMPROV_SETUP_ENABLED 1        // 1 = Improv-Serial WiFi push, 0 = AP portal only
+#define IMPROV_SETUP_WINDOW_MS 180000 // 3-min Improv listen window on first boot
 
 #endif // USER_CONFIG_H

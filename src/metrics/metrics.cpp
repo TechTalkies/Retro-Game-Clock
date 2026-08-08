@@ -13,8 +13,9 @@
 
 void displayStatsCompactGrid() {
   bool isLargeTextMode = (settings.displayRowMode >= 2);
-  int textSize = isLargeTextMode ? 2 : 1;
-  int textHeight = isLargeTextMode ? 16 : 8;
+  // Native 160x128 layout uses readable 2x text in every metrics mode.
+  int textSize = 2;
+  int textHeight = 16;
 
   display.setTextSize(textSize);
 
@@ -26,35 +27,35 @@ void displayStatsCompactGrid() {
 
     if (settings.displayRowMode == 2) {
       // 2-row: center vertically with generous spacing
-      startY = 8;  // Y=8, Y=40
+      startY = 30;
     } else {
       // 3-row: start near top
-      startY = 4;  // Y=4, Y=24, Y=44
+      startY = 22;
     }
 
     // Clock: always centered at size 1 in large modes (single column has no left/right)
     if (settings.showClock) {
       display.setTextSize(1);
-      display.setCursor(48 + settings.clockOffset, 0);
+      display.setCursor(104 + settings.clockOffset, 4);
       display.print(metricData.timestamp);
       display.setTextSize(2);
 
       if (settings.displayRowMode == 2) {
-        startY = 12;  // Y=12, Y=36
+        startY = 36;
       } else {
-        startY = 10;  // Y=10, Y=28, Y=46
+        startY = 26;
       }
     }
 
     // 2-row: generous spacing. 3-row: tighter when clock is shown to fit all rows
-    int ROW_HEIGHT = (settings.displayRowMode == 2) ? 32 : (settings.showClock ? 18 : 20);
+    int ROW_HEIGHT = (settings.displayRowMode == 2) ? 48 : (settings.showClock ? 30 : 34);
 
     int visibleCount = 0;
 
     for (int row = 0; row < MAX_ROWS; row++) {
       int y = startY + (row * ROW_HEIGHT);
 
-      if (y + textHeight > 64) break;
+      if (y + textHeight > SCREEN_HEIGHT) break;
 
       uint8_t position = row;  // Sequential: 0, 1, 2
 
@@ -63,7 +64,7 @@ void displayStatsCompactGrid() {
       for (int i = 0; i < metricData.count; i++) {
         Metric& m = metricData.metrics[i];
         if (m.barPosition == position) {
-          drawProgressBar(0, y, 128, &m);  // Full width
+          drawProgressBar(0, y, SCREEN_WIDTH, &m);
           visibleCount++;
           rendered = true;
           break;
@@ -101,28 +102,27 @@ void displayStatsCompactGrid() {
     // ===== Normal text modes: 2-column layout =====
     display.setTextWrap(true);  // Restore default wrapping
     const int COL1_X = 0;
-    const int COL2_X = 62;  // Moved 2px left to give right column more space
+    const int COL2_X = 80;
 
     int startY;
     int ROW_HEIGHT;
     const int MAX_ROWS = (settings.displayRowMode == 0) ? 5 : 6;
 
-    if (settings.displayRowMode == 0) {  // 5-row mode - optimized spacing
-      startY = 0;  // Start at very top to maximize space
-      // Use 13px spacing for maximum readability, except with centered clock (11px to fit)
-      ROW_HEIGHT = (settings.showClock && settings.clockPosition == 0) ? 11 : 13;
+    if (settings.displayRowMode == 0) {
+      startY = 12;
+      ROW_HEIGHT = (settings.showClock && settings.clockPosition == 0) ? 20 : 22;
     } else {  // 6-row mode - compact layout
-      startY = 2;
-      ROW_HEIGHT = 10;
+      startY = 8;
+      ROW_HEIGHT = 20;
     }
 
     // Clock positioning: 0=Center, 1=Left, 2=Right
     if (settings.showClock) {
       if (settings.clockPosition == 0) {
         // Center - Clock at top center, metrics below
-        display.setCursor(48 + settings.clockOffset, startY);
+        display.setCursor(104 + settings.clockOffset, startY);
         display.print(metricData.timestamp);
-        startY += 10;  // Clock height (8px) + 2px gap
+        startY += 20;
       } else if (settings.clockPosition == 1) {
         // Clock in left column, first row
         display.setCursor(COL1_X + settings.clockOffset, startY);
@@ -141,7 +141,7 @@ void displayStatsCompactGrid() {
       int y = startY + (row * ROW_HEIGHT);
 
       // Check for overflow
-      if (y + 8 > 64) break;
+      if (y + textHeight > SCREEN_HEIGHT) break;
 
       // Calculate position indices for this row
       uint8_t leftPos = row * 2;      // 0, 2, 4, 6, 8, 10
@@ -159,7 +159,7 @@ void displayStatsCompactGrid() {
         for (int i = 0; i < metricData.count; i++) {
           Metric& m = metricData.metrics[i];
           if (m.barPosition == leftPos) {
-            drawProgressBar(COL1_X, y, 60, &m);  // Full-size bar for left column
+            drawProgressBar(COL1_X, y, 76, &m);
             visibleCount++;
             rendered = true;
             break;
@@ -188,7 +188,7 @@ void displayStatsCompactGrid() {
         for (int i = 0; i < metricData.count; i++) {
           Metric& m = metricData.metrics[i];
           if (m.barPosition == rightPos) {
-            drawProgressBar(COL2_X, y, 64, &m);  // Full-size bar for right column
+            drawProgressBar(COL2_X, y, 80, &m);
             visibleCount++;
             rendered = true;
             break;
@@ -309,12 +309,14 @@ void displayMetricCompact(Metric* m) {
     }
   }
 
+  display.setTextColor(DISPLAY_VALUE);
   display.print(text);
+  display.setTextColor(DISPLAY_WHITE);
 
   if (hasCompanionLarge) {
     // Right-align companion so it stays fixed regardless of primary value width
     int compLen = strlen(companionText + 1);  // +1 to skip leading space
-    int compX = 128 - (compLen * 12);         // 12px per char at text size 2
+    int compX = SCREEN_WIDTH - (compLen * 12);
     int16_t curX = display.getCursorX();
     int16_t curY = display.getCursorY();
     // Ensure minimum 4px gap from primary text to avoid overlap
@@ -333,9 +335,9 @@ void drawProgressBar(int x, int y, int width, Metric* m) {
   int actualWidth = m->barWidth;
 
   // Guard against off-screen or invalid bar dimensions
-  if (actualX >= 128 || actualX < 0) return;
-  if (actualX + actualWidth > 128) {
-    actualWidth = 128 - actualX;
+  if (actualX >= SCREEN_WIDTH || actualX < 0) return;
+  if (actualX + actualWidth > SCREEN_WIDTH) {
+    actualWidth = SCREEN_WIDTH - actualX;
   }
   if (actualWidth <= 0) return;
 
@@ -354,14 +356,14 @@ void drawProgressBar(int x, int y, int width, Metric* m) {
   int fillWidth = map(valueInRange, 0, range, 0, actualWidth - 2);
 
   // Bar height scales with display mode (16px for large text, 8px for normal)
-  int barHeight = (settings.displayRowMode >= 2) ? 16 : 8;
+  int barHeight = (settings.displayRowMode >= 2) ? 24 : 14;
 
   // Draw bar outline
-  display.drawRect(actualX, y, actualWidth, barHeight, DISPLAY_WHITE);
+  display.drawRect(actualX, y, actualWidth, barHeight, DISPLAY_ACCENT);
 
   // Fill bar based on value
   if (fillWidth > 0) {
-    display.fillRect(actualX + 1, y + 1, fillWidth, barHeight - 2, DISPLAY_WHITE);
+    display.fillRect(actualX + 1, y + 1, fillWidth, barHeight - 2, ST77XX_GREEN);
   }
 }
 

@@ -2,7 +2,7 @@
  * SmallOLED-PCMonitor - Display Module
  *
  * Display initialization and global display object.
- * Supports both SSD1306 and SH1106 displays via compile-time selection.
+ * Supports ST7735 TFT plus legacy OLED display types via compile-time selection.
  */
 
 #ifndef DISPLAY_H
@@ -21,9 +21,20 @@
   #define DISPLAY_TYPE DEFAULT_DISPLAY_TYPE
 #endif
 
+// Display type 3: ST7735 160x128 colour TFT, used in landscape orientation.
+#if DISPLAY_TYPE == 3
+  #include "st7735_display.h"
+  extern ST7735Display display;
+  #ifndef DISPLAY_WHITE
+    #define DISPLAY_WHITE ST77XX_CYAN
+  #endif
+  #ifndef DISPLAY_BLACK
+    #define DISPLAY_BLACK ST7735Display::BACKGROUND
+  #endif
+  #define DISPLAY_ACCENT ST77XX_MAGENTA
+  #define DISPLAY_VALUE ST77XX_YELLOW
 // Display type 1: SH1106 (1.3") - has 132x64 RAM, driver applies 2-column offset
-// Display type 2: CH1116 (1.54") - SH1106-compatible, uses a 1-column offset
-#if DISPLAY_TYPE == 1 || DISPLAY_TYPE == 2
+#elif DISPLAY_TYPE == 1 || DISPLAY_TYPE == 2
   #if DISPLAY_TYPE == 2
     #include "ch1116.h"
     extern Adafruit_CH1116 display;
@@ -53,16 +64,8 @@
 // Initialize display - returns true on success
 bool initDisplay();
 void applyDisplayBrightness();
-// Returns false when the scheduled target could not be resolved (no valid time).
-bool refreshDisplayBrightnessNow();
+void refreshDisplayBrightnessNow();
 void checkScheduledBrightness();
-
-// True only when the time is valid AND the schedule resolves to a dark panel.
-// Unknown time reports false, so callers never blank the display on a guess.
-bool scheduledDisplayIsOff();
-
-// Brightness actually pushed to the panel (0 = powered off), for status reporting.
-uint8_t getLastAppliedBrightness();
 
 // Runtime display control (HTTP API) - not persisted to flash
 void setDisplayForcedOff(bool off);

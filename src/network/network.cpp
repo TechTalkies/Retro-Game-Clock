@@ -16,7 +16,7 @@
 #endif
 
 #if TOUCH_BUTTON_ENABLED
-extern bool manualClockMode;  // Defined in main.cpp
+extern bool manualClockMode; // Defined in main.cpp
 #endif
 
 // Global network objects
@@ -24,12 +24,34 @@ WiFiUDP udp;
 WiFiManager wifiManager;
 extern Preferences preferences;
 
+// ========== Helper for Multi-Color Title ==========
+void drawGameClockTitle(int yPos)
+{
+  display.setTextSize(2);
+  const char *title = "GAME CLOCK";
+  // Red, Orange, Yellow, Green, Black(space), Cyan, Blue, Magenta, Red, Orange
+  uint16_t colors[] = {0xF800, 0xFD20, 0xFFE0, 0x07E0, 0x0000, 0x07FF, 0x001F, 0xF81F, 0xF800, 0xFD20};
+
+  // Center 10 chars at textSize 2 (12px per char)
+  int titleX = (SCREEN_WIDTH - (10 * 12)) / 2;
+  display.setCursor(titleX, yPos);
+
+  for (int i = 0; i < 10; i++)
+  {
+    display.setTextColor(colors[i]);
+    display.print(title[i]);
+  }
+  display.setTextColor(DISPLAY_WHITE); // Reset text color
+}
+
 // ========== WiFi Callbacks ==========
-void configModeCallback(WiFiManager *myWiFiManager) {
+void configModeCallback(WiFiManager *myWiFiManager)
+{
   Serial.println("Config mode entered");
   Serial.println(WiFi.softAPIP());
 
-  if (displayAvailable) {
+  if (displayAvailable)
+  {
 #if QR_SETUP_ENABLED
     displayQRCodeSetup();
 #else
@@ -38,43 +60,60 @@ void configModeCallback(WiFiManager *myWiFiManager) {
   }
 }
 
-void saveConfigCallback() {
-  if (displayAvailable) {
+void saveConfigCallback()
+{
+  if (displayAvailable)
+  {
     displayConnecting();
   }
 }
 
 // ========== Static IP Application ==========
-void applyStaticIP() {
-  if (settings.useStaticIP) {
+void applyStaticIP()
+{
+  if (settings.useStaticIP)
+  {
     IPAddress local_IP, gateway_IP, subnet_IP, dns1_IP;
 
     if (local_IP.fromString(settings.staticIP) &&
         gateway_IP.fromString(settings.gateway) &&
         subnet_IP.fromString(settings.subnet) &&
-        dns1_IP.fromString(settings.dns1)) {
+        dns1_IP.fromString(settings.dns1))
+    {
 
       Serial.println("Configuring Static IP...");
-      Serial.print("IP: "); Serial.println(local_IP);
-      Serial.print("Gateway: "); Serial.println(gateway_IP);
-      Serial.print("Subnet: "); Serial.println(subnet_IP);
-      Serial.print("DNS1: "); Serial.println(dns1_IP);
+      Serial.print("IP: ");
+      Serial.println(local_IP);
+      Serial.print("Gateway: ");
+      Serial.println(gateway_IP);
+      Serial.print("Subnet: ");
+      Serial.println(subnet_IP);
+      Serial.print("DNS1: ");
+      Serial.println(dns1_IP);
 
       wifiManager.setSTAStaticIPConfig(local_IP, gateway_IP, subnet_IP, dns1_IP);
-    } else {
+    }
+    else
+    {
       Serial.println("Invalid static IP configuration, using DHCP");
     }
   }
 }
 
 // ========== Manual WiFi Connection ==========
-bool connectManualWiFi(const char* ssid, const char* password) {
-  if (displayAvailable) {
+bool connectManualWiFi(const char *ssid, const char *password)
+{
+  if (displayAvailable)
+  {
     display.clearDisplay();
+    drawGameClockTitle(10);
+
     display.setTextSize(1);
-    display.setCursor(10, 20);
+    display.setCursor((SCREEN_WIDTH - (13 * 6)) / 2, 45);
     display.println("Connecting to");
-    display.setCursor(10, 35);
+
+    int ssidWidth = strlen(ssid) * 6;
+    display.setCursor((SCREEN_WIDTH - ssidWidth) / 2, 60);
     display.println(ssid);
     display.display();
   }
@@ -82,21 +121,26 @@ bool connectManualWiFi(const char* ssid, const char* password) {
   WiFi.mode(WIFI_STA);
 
   // Apply static IP configuration if enabled
-  if (settings.useStaticIP) {
+  if (settings.useStaticIP)
+  {
     IPAddress local_IP, gateway_IP, subnet_IP, dns1_IP, dns2_IP;
 
     if (local_IP.fromString(settings.staticIP) &&
         gateway_IP.fromString(settings.gateway) &&
         subnet_IP.fromString(settings.subnet) &&
-        dns1_IP.fromString(settings.dns1)) {
+        dns1_IP.fromString(settings.dns1))
+    {
 
       dns2_IP.fromString(settings.dns2);
 
       Serial.println("Configuring Static IP for manual WiFi...");
-      if (!WiFi.config(local_IP, gateway_IP, subnet_IP, dns1_IP, dns2_IP)) {
+      if (!WiFi.config(local_IP, gateway_IP, subnet_IP, dns1_IP, dns2_IP))
+      {
         Serial.println("Static IP configuration failed!");
       }
-    } else {
+    }
+    else
+    {
       Serial.println("Invalid static IP configuration, using DHCP");
     }
   }
@@ -106,16 +150,21 @@ bool connectManualWiFi(const char* ssid, const char* password) {
   int attempts = 0;
   int maxAttempts = 30;
 
-  while (WiFi.status() != WL_CONNECTED && attempts < maxAttempts) {
+  while (WiFi.status() != WL_CONNECTED && attempts < maxAttempts)
+  {
     delay(1000);
     attempts++;
 
-    if (displayAvailable && attempts % 5 == 0) {
+    if (displayAvailable && attempts % 5 == 0)
+    {
       display.clearDisplay();
+      drawGameClockTitle(10);
+
       display.setTextSize(1);
-      display.setCursor(10, 20);
+      display.setCursor((SCREEN_WIDTH - (13 * 6)) / 2, 45);
       display.println("Connecting...");
-      display.setCursor(10, 35);
+
+      display.setCursor((SCREEN_WIDTH - (14 * 6)) / 2, 60);
       display.print("Attempt: ");
       display.print(String(attempts).c_str());
       display.print("/");
@@ -126,19 +175,23 @@ bool connectManualWiFi(const char* ssid, const char* password) {
 
   Serial.println();
 
-  if (WiFi.status() == WL_CONNECTED) {
+  if (WiFi.status() == WL_CONNECTED)
+  {
     Serial.println("WiFi Connected!");
     Serial.print("IP Address: ");
     Serial.println(WiFi.localIP());
     return true;
-  } else {
+  }
+  else
+  {
     Serial.println("WiFi Connection Failed!");
     return false;
   }
 }
 
 // ========== Network Initialization ==========
-void initNetwork() {
+void initNetwork()
+{
   // Apply static IP if configured
   applyStaticIP();
 
@@ -150,42 +203,34 @@ void initNetwork() {
   wifiManager.setDebugOutput(false);
 
 #if IMPROV_SETUP_ENABLED
-  // Run the config portal non-blocking so we can pump the Improv-Serial
-  // listener in parallel (the web-flasher "Configure WiFi" path). setup() still
-  // blocks here until WiFi connects or the portal times out - see the loop
-  // below - so the rest of boot behaves exactly as before.
   wifiManager.setConfigPortalBlocking(false);
 #endif
 
   bool connected = (strlen(AP_PASSWORD) > 0)
-    ? wifiManager.autoConnect(AP_NAME, AP_PASSWORD)
-    : wifiManager.autoConnect(AP_NAME);
+                       ? wifiManager.autoConnect(AP_NAME, AP_PASSWORD)
+                       : wifiManager.autoConnect(AP_NAME);
 
 #if IMPROV_SETUP_ENABLED
-  if (!connected) {
-    // autoConnect() started the captive portal (non-blocking). On genuinely
-    // fresh devices (no stored SSID) also open an Improv-Serial window so a
-    // browser that just flashed via the web flasher can push credentials over
-    // USB. Returning users who only mistyped a password get the AP portal
-    // alone - they need to fix what they typed, not a serial dialog over a
-    // port that may not even be connected anymore.
+  if (!connected)
+  {
     bool freshDevice = !wifiManager.getWiFiIsSaved();
-    if (freshDevice) {
+    if (freshDevice)
+    {
       improvSetupBegin(IMPROV_SETUP_WINDOW_MS);
     }
 
-    while (!connected && wifiManager.getConfigPortalActive()) {
-      // Service the captive portal (DNS + web server).
-      if (wifiManager.process()) {
+    while (!connected && wifiManager.getConfigPortalActive())
+    {
+      if (wifiManager.process())
+      {
         connected = true;
         break;
       }
-      // Service Improv-Serial. On success the library has already saved the
-      // credentials and connected STA, so restart for a clean STA-only boot.
-      if (freshDevice && improvSetupTick()) {
+      if (freshDevice && improvSetupTick())
+      {
         Serial.println("Improv: credentials received, restarting");
         Serial.flush();
-        delay(200);  // let the response reach the browser before reset
+        delay(200); // let the response reach the browser before reset
         ESP.restart();
       }
       delay(5);
@@ -194,13 +239,18 @@ void initNetwork() {
   }
 #endif
 
-  if (!connected) {
+  if (!connected)
+  {
     Serial.println("Failed to connect and hit timeout");
-    if (displayAvailable) {
+    if (displayAvailable)
+    {
       display.clearDisplay();
-      display.setCursor(10, 20);
+      drawGameClockTitle(10);
+
+      display.setTextSize(1);
+      display.setCursor((SCREEN_WIDTH - (13 * 6)) / 2, 45);
       display.println("WiFi Timeout!");
-      display.setCursor(10, 35);
+      display.setCursor((SCREEN_WIDTH - (13 * 6)) / 2, 60);
       display.println("Restarting...");
       display.display();
     }
@@ -225,34 +275,43 @@ void initNetwork() {
 }
 
 // ========== mDNS Service Discovery ==========
-void initMDNS() {
-  MDNS.end();  // Stop any previous mDNS instance
-  if (MDNS.begin(settings.deviceName)) {
+void initMDNS()
+{
+  MDNS.end(); // Stop any previous mDNS instance
+  if (MDNS.begin(settings.deviceName))
+  {
     MDNS.addService("http", "tcp", 80);
     MDNS.addServiceTxt("http", "tcp", "version", FIRMWARE_VERSION);
     MDNS.addServiceTxt("http", "tcp", "model", "SmallOLED");
     MDNS.addServiceTxt("http", "tcp", "mac", WiFi.macAddress().c_str());
     Serial.printf("mDNS started: %s.local\n", settings.deviceName);
-  } else {
+  }
+  else
+  {
     Serial.println("mDNS failed to start");
   }
 }
 
 // ========== NTP Functions ==========
-void applyTimezone() {
+void applyTimezone()
+{
   // If timezone string is set, use automatic DST with configTzTime()
-  if (strlen(settings.timezoneString) > 0) {
+  if (strlen(settings.timezoneString) > 0)
+  {
     configTzTime(settings.timezoneString, NTP_SERVER_PRIMARY, NTP_SERVER_SECONDARY);
     Serial.printf("Timezone set (automatic DST): %s\n", settings.timezoneString);
   }
-  else {
+  else
+  {
     // Fallback: Try to map old GMT offset to default timezone
-    const char* defaultTz = getDefaultTimezoneForOffset(settings.gmtOffset);
-    if (defaultTz != nullptr) {
+    const char *defaultTz = getDefaultTimezoneForOffset(settings.gmtOffset);
+    if (defaultTz != nullptr)
+    {
       configTzTime(defaultTz, NTP_SERVER_PRIMARY, NTP_SERVER_SECONDARY);
       Serial.printf("Auto-detected timezone: %s\n", defaultTz);
     }
-    else {
+    else
+    {
       // Ultimate fallback: Manual offset without DST
       int gmtOffset_sec = settings.gmtOffset * 60;
       configTime(gmtOffset_sec, 0, NTP_SERVER_PRIMARY, NTP_SERVER_SECONDARY);
@@ -261,22 +320,29 @@ void applyTimezone() {
   }
 }
 
-void initNTP() {
+void initNTP()
+{
   applyTimezone();
   ntpSynced = false;
 
-  if (displayAvailable) {
+  if (displayAvailable)
+  {
     display.clearDisplay();
+    drawGameClockTitle(10);
+
     display.setTextSize(1);
-    display.setCursor(10, 20);
+    display.setCursor((SCREEN_WIDTH - (15 * 6)) / 2, 45);
     display.println("Syncing time...");
     display.display();
   }
 
   struct tm timeinfo;
-  for (int i = 0; i < 30; i++) {
-    if (getLocalTime(&timeinfo, 100)) {
-      if (timeinfo.tm_year > 120) {
+  for (int i = 0; i < 30; i++)
+  {
+    if (getLocalTime(&timeinfo, 100))
+    {
+      if (timeinfo.tm_year > 120)
+      {
         ntpSynced = true;
         lastNtpSyncTime = millis();
         Serial.println("NTP time synchronized successfully");
@@ -286,7 +352,8 @@ void initNTP() {
     delay(100);
   }
 
-  if (!ntpSynced) {
+  if (!ntpSynced)
+  {
     Serial.println("NTP sync pending, will retry in background");
   }
 }
@@ -295,22 +362,26 @@ void initNTP() {
 // Reconnection interval in milliseconds (try every 30 seconds)
 #define WIFI_RECONNECT_INTERVAL 30000
 
-void handleWiFiReconnection() {
+void handleWiFiReconnection()
+{
   static unsigned long lastReconnectAttempt = 0;
 
-  if (WiFi.status() != WL_CONNECTED) {
+  if (WiFi.status() != WL_CONNECTED)
+  {
     // Update global flag for icon display
     wifiConnected = false;
     metricData.online = false;
 
-    if (wifiDisconnectTime == 0) {
+    if (wifiDisconnectTime == 0)
+    {
       wifiDisconnectTime = millis();
       Serial.println("WiFi disconnected");
     }
 
     // Periodic reconnection attempt every 30 seconds
     unsigned long currentMillis = millis();
-    if (currentMillis - lastReconnectAttempt > WIFI_RECONNECT_INTERVAL) {
+    if (currentMillis - lastReconnectAttempt > WIFI_RECONNECT_INTERVAL)
+    {
       Serial.println("Attempting WiFi reconnection...");
       WiFi.reconnect();
       lastReconnectAttempt = currentMillis;
@@ -318,40 +389,47 @@ void handleWiFiReconnection() {
 
     // NOTE: Auto-reboot removed - device continues as clock-only
     // NOTE: Display drawing removed - clock functions show small icon instead
-  } else {
+  }
+  else
+  {
     // WiFi is connected
     wifiConnected = true;
 
-    if (wifiDisconnectTime != 0) {
+    if (wifiDisconnectTime != 0)
+    {
       Serial.println("WiFi reconnected successfully!");
       Serial.print("IP Address: ");
       Serial.println(WiFi.localIP());
       wifiDisconnectTime = 0;
-      ntpSynced = false;  // Force NTP resync after reconnection
-      applyTimezone();    // Restart SNTP client and reapply timezone
-      udp.stop();         // Re-initialize UDP socket (old fd is stale)
+      ntpSynced = false; // Force NTP resync after reconnection
+      applyTimezone();   // Restart SNTP client and reapply timezone
+      udp.stop();        // Re-initialize UDP socket (old fd is stale)
       udp.begin(UDP_PORT);
-      initMDNS();         // Re-register mDNS after reconnection
+      initMDNS(); // Re-register mDNS after reconnection
     }
   }
 }
 
 // ========== UDP Packet Handling ==========
-void handleUDP() {
+void handleUDP()
+{
   int packetSize = udp.parsePacket();
-  if (packetSize) {
+  if (packetSize)
+  {
     static char buffer[2048];
 
     // Check size BEFORE reading to avoid processing truncated data
-    if (packetSize > (int)sizeof(buffer) - 1) {
+    if (packetSize > (int)sizeof(buffer) - 1)
+    {
       Serial.printf("ERROR: Packet %d bytes exceeds buffer %d bytes, discarding.\n",
                     packetSize, (int)sizeof(buffer));
       udp.flush();
-      return;  // Don't update lastReceived for bad packets
+      return; // Don't update lastReceived for bad packets
     }
 
     int len = udp.read(buffer, sizeof(buffer) - 1);
-    if (len > 0) {
+    if (len > 0)
+    {
       buffer[len] = '\0';
 
       Serial.print("UDP packet: ");
@@ -367,77 +445,91 @@ void handleUDP() {
 }
 
 // ========== Stats Parsing ==========
-void parseStatsV2(JsonDocument& doc) {
-  // Parse status code (1=OK, 2=API error, 3=LHM not running, etc.)
+void parseStatsV2(JsonDocument &doc)
+{
+  // Parse status code (1=OK, 2=API error, 3=App not running, etc.)
   uint8_t newStatus = doc["status"] | STATUS_OK;
 
-  if (newStatus != metricData.status) {
+  if (newStatus != metricData.status)
+  {
     // Status changed - log it
-    switch (newStatus) {
-      case STATUS_OK:
-        Serial.println("Status: LHM OK");
-        break;
-      case STATUS_API_ERROR:
-        Serial.println("Status: LHM API error - check REST API");
-        break;
-      case STATUS_LHM_NOT_RUNNING:
-        Serial.println("Status: LHM not running!");
-        break;
-      case STATUS_LHM_STARTING:
-        Serial.println("Status: LHM starting up...");
-        break;
-      default:
-        Serial.printf("Status: Unknown error (%d)\n", newStatus);
-        break;
+    switch (newStatus)
+    {
+    case STATUS_OK:
+      Serial.println("Status: App OK");
+      break;
+    case STATUS_API_ERROR:
+      Serial.println("Status: API error - check REST API");
+      break;
+    case STATUS_LHM_NOT_RUNNING:
+      Serial.println("Status: App not running!");
+      break;
+    case STATUS_LHM_STARTING:
+      Serial.println("Status: App starting up...");
+      break;
+    default:
+      Serial.printf("Status: Unknown error (%d)\n", newStatus);
+      break;
     }
   }
   metricData.status = newStatus;
 
-  const char* ts = doc["timestamp"];
-  if (ts && strlen(ts) > 0) {
+  const char *ts = doc["timestamp"];
+  if (ts && strlen(ts) > 0)
+  {
     // Valid timestamp - update it
     strncpy(metricData.timestamp, ts, 5);
     metricData.timestamp[5] = '\0';
-  } else {
-    // Empty timestamp signals stale data from Python script (LHM may be down)
-    // Keep the previous timestamp - don't overwrite with empty
-    Serial.println("Warning: Empty timestamp received (LHM may be recovering)");
+  }
+  else
+  {
+    // Empty timestamp signals stale data from app
+    Serial.println("Warning: Empty timestamp received (App may be recovering)");
   }
 
   JsonArray metricsArray = doc["metrics"];
   metricData.count = 0;
 
-  for (JsonObject metricObj : metricsArray) {
-    if (metricData.count >= MAX_METRICS) break;
+  for (JsonObject metricObj : metricsArray)
+  {
+    if (metricData.count >= MAX_METRICS)
+      break;
 
-    Metric& m = metricData.metrics[metricData.count];
+    Metric &m = metricData.metrics[metricData.count];
 
     m.id = metricObj["id"] | 0;
 
-    const char* name = metricObj["name"];
-    if (name) {
+    const char *name = metricObj["name"];
+    if (name)
+    {
       strncpy(m.name, name, METRIC_NAME_LEN - 1);
       m.name[METRIC_NAME_LEN - 1] = '\0';
       trimTrailingSpaces(m.name);
     }
 
-    const char* unit = metricObj["unit"];
-    if (unit) {
+    const char *unit = metricObj["unit"];
+    if (unit)
+    {
       strncpy(m.unit, unit, METRIC_UNIT_LEN - 1);
       m.unit[METRIC_UNIT_LEN - 1] = '\0';
     }
 
     m.value = metricObj["value"] | 0;
 
-    if (m.id > 0 && m.id <= MAX_METRICS) {
+    if (m.id > 0 && m.id <= MAX_METRICS)
+    {
       bool nameMatches = (settings.metricNames[m.id - 1][0] == '\0' ||
                           strcmp(settings.metricNames[m.id - 1], m.name) == 0);
 
-      if (nameMatches) {
-        if (settings.metricLabels[m.id - 1][0] != '\0') {
+      if (nameMatches)
+      {
+        if (settings.metricLabels[m.id - 1][0] != '\0')
+        {
           strncpy(m.label, settings.metricLabels[m.id - 1], METRIC_NAME_LEN - 1);
           m.label[METRIC_NAME_LEN - 1] = '\0';
-        } else {
+        }
+        else
+        {
           strncpy(m.label, m.name, METRIC_NAME_LEN - 1);
           m.label[METRIC_NAME_LEN - 1] = '\0';
         }
@@ -453,7 +545,9 @@ void parseStatsV2(JsonDocument& doc) {
 
         strncpy(settings.metricNames[m.id - 1], m.name, METRIC_NAME_LEN - 1);
         settings.metricNames[m.id - 1][METRIC_NAME_LEN - 1] = '\0';
-      } else {
+      }
+      else
+      {
         Serial.printf("Metric ID %d name changed: '%s' -> '%s', using defaults\n",
                       m.id, settings.metricNames[m.id - 1], m.name);
 
@@ -472,7 +566,9 @@ void parseStatsV2(JsonDocument& doc) {
         settings.metricNames[m.id - 1][METRIC_NAME_LEN - 1] = '\0';
         settings.metricLabels[m.id - 1][0] = '\0';
       }
-    } else {
+    }
+    else
+    {
       strncpy(m.label, m.name, METRIC_NAME_LEN - 1);
       m.label[METRIC_NAME_LEN - 1] = '\0';
       m.displayOrder = metricData.count;
@@ -494,18 +590,22 @@ void parseStatsV2(JsonDocument& doc) {
   Serial.print(metricData.count);
   Serial.print(" metrics, ");
   int visibleCount = 0;
-  for (int i = 0; i < metricData.count; i++) {
-    if (metricData.metrics[i].position != 255) visibleCount++;
+  for (int i = 0; i < metricData.count; i++)
+  {
+    if (metricData.metrics[i].position != 255)
+      visibleCount++;
   }
   Serial.print(visibleCount);
   Serial.println(" visible (position assigned)");
 }
 
-void parseStats(const char* json) {
+void parseStats(const char *json)
+{
   JsonDocument doc;
   DeserializationError error = deserializeJson(doc, json);
 
-  if (error) {
+  if (error)
+  {
     Serial.print("JSON parse error: ");
     Serial.println(error.c_str());
     return;
@@ -515,42 +615,49 @@ void parseStats(const char* json) {
 }
 
 // ========== Display Status Screens ==========
-void displaySetupInstructions() {
+void displaySetupInstructions()
+{
   display.clearDisplay();
+
+  drawGameClockTitle(10);
+  display.drawLine(0, 30, SCREEN_WIDTH, 30, DISPLAY_WHITE);
+
   display.setTextSize(1);
+  display.setCursor(10, 40);
+  display.println("1. Connect to WiFi:");
 
-  display.setCursor(20, 0);
-  display.println("WiFi Setup");
-  display.drawLine(0, 10, 128, 10, DISPLAY_WHITE);
-
-  display.setCursor(0, 14);
-  display.println("1.Connect to WiFi:");
-
-  display.setCursor(0, 26);
-  display.print("  ");
+  display.setCursor(20, 55);
+  display.print("AP: ");
   display.println(AP_NAME);
 
-  display.setCursor(0, 38);
-  if (strlen(AP_PASSWORD) > 0) {
-    display.print("  Pass: ");
+  display.setCursor(20, 70);
+  if (strlen(AP_PASSWORD) > 0)
+  {
+    display.print("Pass: ");
     display.println(AP_PASSWORD);
-  } else {
-    display.println("  (no password)");
+  }
+  else
+  {
+    display.println("(no password)");
   }
 
-  display.setCursor(0, 50);
-  display.println("2.Open 192.168.4.1");
+  display.setCursor(10, 95);
+  display.println("2. Open 192.168.4.1");
 
   display.display();
 }
 
 #if QR_SETUP_ENABLED
-void displayQRCodeSetup() {
+void displayQRCodeSetup()
+{
   // WiFi QR format: open AP uses T:nopass, secured uses T:WPA
   char qrData[80];
-  if (strlen(AP_PASSWORD) > 0) {
+  if (strlen(AP_PASSWORD) > 0)
+  {
     snprintf(qrData, sizeof(qrData), "WIFI:T:WPA;S:%s;P:%s;;", AP_NAME, AP_PASSWORD);
-  } else {
+  }
+  else
+  {
     snprintf(qrData, sizeof(qrData), "WIFI:T:nopass;S:%s;;", AP_NAME);
   }
 
@@ -562,130 +669,140 @@ void displayQRCodeSetup() {
   display.clearDisplay();
 
   // Layout: text on left, QR code on right
-  // QR: 29x29 modules * 2px = 58x58 pixels, right-aligned, vertically centered
-  const uint8_t qrSize = qrcode.size;       // 29 for Version 3
-  const uint8_t pixelSize = 2;              // 2x2 pixels per module
-  const uint8_t qrDisplaySize = qrSize * pixelSize;  // 58 pixels
-  const uint8_t qrX = SCREEN_WIDTH - qrDisplaySize - 1;  // right side with 1px margin
-  const uint8_t qrY = (SCREEN_HEIGHT - qrDisplaySize) / 2;  // vertically centered
+  // QR: 29x29 modules * 3px = 87x87 pixels (perfect for 160x128 screen)
+  const uint8_t qrSize = qrcode.size;
+  const uint8_t pixelSize = 3;
+  const uint8_t qrDisplaySize = qrSize * pixelSize;
+  const uint8_t qrX = SCREEN_WIDTH - qrDisplaySize - 10;
+  const uint8_t qrY = (SCREEN_HEIGHT - qrDisplaySize) / 2;
 
   // Draw QR code
-  for (uint8_t y = 0; y < qrSize; y++) {
-    for (uint8_t x = 0; x < qrSize; x++) {
-      if (qrcode_getModule(&qrcode, x, y)) {
+  for (uint8_t y = 0; y < qrSize; y++)
+  {
+    for (uint8_t x = 0; x < qrSize; x++)
+    {
+      if (qrcode_getModule(&qrcode, x, y))
+      {
         display.fillRect(qrX + (x * pixelSize), qrY + (y * pixelSize),
                          pixelSize, pixelSize, DISPLAY_WHITE);
       }
     }
   }
 
-  // Text labels on the left side (68px available, ~11 chars at 6px each)
+  // Text labels on the left side
   display.setTextSize(1);
-  display.setCursor(0, 4);
+  display.setCursor(10, 20);
   display.println("Scan QR");
-  display.setCursor(0, 14);
+  display.setCursor(10, 35);
   display.println("to join");
-  display.setCursor(0, 24);
+  display.setCursor(10, 50);
   display.println("WiFi");
 
-  display.setCursor(0, 42);
-  display.println("Open:");
-  display.setCursor(0, 52);
+  display.setCursor(10, 80);
+  display.println("Or open:");
+  display.setCursor(10, 95);
   display.println("192.168.4.1");
 
   display.display();
 }
 #endif
 
-void displayConnecting() {
+void displayConnecting()
+{
   display.clearDisplay();
+
+  drawGameClockTitle(30);
+
   display.setTextSize(1);
-  display.setCursor(20, 25);
+  display.setCursor((SCREEN_WIDTH - (13 * 6)) / 2, 70);
   display.println("Connecting to");
-  display.setCursor(30, 40);
+  display.setCursor((SCREEN_WIDTH - (7 * 6)) / 2, 85);
   display.println("WiFi...");
   display.display();
 }
 
-void displayConnected() {
+void displayConnected()
+{
   display.clearDisplay();
-  display.setTextSize(1);
 
-  display.setCursor(25, 4);
+  drawGameClockTitle(10);
+
+  display.setTextSize(1);
+  display.setCursor((SCREEN_WIDTH - (10 * 6)) / 2, 40);
   display.println("Connected!");
 
-  display.setCursor(8, 18);
-  display.println("IP (for Python):");
+  display.setCursor((SCREEN_WIDTH - (11 * 6)) / 2, 60);
+  display.println("IP Address:");
 
   String ip = WiFi.localIP().toString();
   int ip_width = ip.length() * 6;
   int ip_x = (SCREEN_WIDTH - ip_width) / 2;
-  display.setCursor(ip_x, 30);
+  display.setCursor(ip_x, 75);
   display.println(ip.c_str());
 
-  display.drawLine(0, 42, 128, 42, DISPLAY_WHITE);
+  display.drawLine(0, 95, SCREEN_WIDTH, 95, DISPLAY_WHITE);
 
-  display.setCursor(4, 48);
+  display.setCursor((SCREEN_WIDTH - (16 * 6)) / 2, 105);
+  display.println("Device Settings:");
+  display.setCursor((SCREEN_WIDTH - (18 * 6)) / 2, 115);
   display.println("Open IP in browser");
-  display.setCursor(12, 56);
-  display.println("to change settings");
 
   display.display();
 }
 
-void displayErrorStatus(uint8_t status) {
+void displayErrorStatus(uint8_t status)
+{
   display.clearDisplay();
-  display.setTextSize(1);
 
-  // Header with warning
-  display.setCursor(30, 0);
-  display.println("PC MONITOR");
-  display.drawLine(0, 10, 128, 10, DISPLAY_WHITE);
+  drawGameClockTitle(10);
+  display.drawLine(0, 32, SCREEN_WIDTH, 32, DISPLAY_WHITE);
 
   // Status icon (exclamation mark in box)
-  display.drawRect(4, 16, 20, 20, DISPLAY_WHITE);
+  display.drawRect(10, 45, 20, 20, DISPLAY_WHITE);
   display.setTextSize(2);
-  display.setCursor(10, 18);
+  display.setCursor(16, 48);
   display.print("!");
   display.setTextSize(1);
 
   // Status message
-  display.setCursor(30, 18);
-  switch (status) {
-    case STATUS_API_ERROR:
-      display.println("LHM API Error");
-      display.setCursor(30, 28);
-      display.println("Check REST API");
-      break;
-    case STATUS_LHM_NOT_RUNNING:
-      display.println("LHM Not Running");
-      display.setCursor(30, 28);
-      display.println("Start LHM app");
-      break;
-    case STATUS_LHM_STARTING:
-      display.println("LHM Starting");
-      display.setCursor(30, 28);
-      display.println("Please wait...");
-      break;
-    default:
-      display.println("Unknown Error");
-      display.setCursor(30, 28);
-      display.print("Code: ");
-      display.println(status);
-      break;
+  display.setCursor(40, 48);
+  switch (status)
+  {
+  case STATUS_API_ERROR:
+    display.println("API Error");
+    display.setCursor(40, 60);
+    display.println("Check Network");
+    break;
+  case STATUS_LHM_NOT_RUNNING:
+    display.println("App Not Running");
+    display.setCursor(40, 60);
+    display.println("Start Application");
+    break;
+  case STATUS_LHM_STARTING:
+    display.println("App Starting");
+    display.setCursor(40, 60);
+    display.println("Please wait...");
+    break;
+  default:
+    display.println("Unknown Error");
+    display.setCursor(40, 60);
+    display.print("Code: ");
+    display.println(status);
+    break;
   }
 
-  display.drawLine(0, 42, 128, 42, DISPLAY_WHITE);
+  display.drawLine(0, 85, SCREEN_WIDTH, 85, DISPLAY_WHITE);
 
   // Show timestamp if available
-  if (metricData.timestamp[0] != '\0') {
-    display.setCursor(4, 48);
+  if (metricData.timestamp[0] != '\0')
+  {
+    display.setCursor(10, 95);
     display.print("Last OK: ");
     display.println(metricData.timestamp);
   }
 
   // Show IP for reference
-  display.setCursor(4, 56);
+  display.setCursor(10, 110);
   display.print("IP: ");
   display.println(WiFi.localIP().toString().c_str());
 

@@ -12,7 +12,7 @@
 #include "user_config.h"
 
 // ========== Version ==========
-#define FIRMWARE_VERSION "1.6.2"
+#define FIRMWARE_VERSION "1.6.1"
 
 // ========== Constants ==========
 #define MAX_METRICS 20
@@ -214,11 +214,11 @@ struct MarioFireball {
 #define MARIO_ANIM_SPEED 35
 #define ENCOUNTER_ANIM_SPEED 16  // ~60fps for smooth encounter animations
 #define ENCOUNTER_TIME_SCALE (ENCOUNTER_ANIM_SPEED / (float)MARIO_ANIM_SPEED)  // ~0.46
-#define JUMP_POWER -4.5
+#define JUMP_POWER -6.2
 #define GRAVITY 0.6
-#define TIME_Y 26
-#define MARIO_HEAD_OFFSET 10
-#define DIGIT_BOTTOM (TIME_Y + 21)
+#define TIME_Y 44
+#define MARIO_HEAD_OFFSET 15
+#define DIGIT_BOTTOM (TIME_Y + 39)
 
 // Digit X positions for time display
 extern const int DIGIT_X[5];
@@ -243,7 +243,7 @@ struct Laser {
 #define MAX_SPACE_FRAGMENTS 20
 #define LASER_MAX_LENGTH 50
 #define SPACE_PATROL_LEFT 20
-#define SPACE_PATROL_RIGHT 108
+#define SPACE_PATROL_RIGHT 140         // SCREEN_WIDTH(160) - 20px margin
 
 struct SpaceFragment {
   float x, y;
@@ -299,9 +299,9 @@ struct FragmentTarget {
 #define MAX_PONG_BALLS 2
 #define MAX_PONG_FRAGMENTS 40
 #define PONG_BALL_SIZE 2
-#define PONG_TIME_Y 16
+#define PONG_TIME_Y 44
 #define PONG_PLAY_AREA_TOP 10          // Above digits (ball can enter date area)
-#define BREAKOUT_PADDLE_Y 60
+#define BREAKOUT_PADDLE_Y 124           // SCREEN_HEIGHT(128) - 4px margin (was 60 on 64px-tall OLED)
 #define BREAKOUT_PADDLE_HEIGHT 2
 #define PONG_UPDATE_INTERVAL 20
 #define BALL_SPAWN_DELAY 500
@@ -341,7 +341,7 @@ struct PathStep {
 
 // Pac-Man constants
 #define PACMAN_ANIM_SPEED 30
-#define PACMAN_PATROL_Y 56
+#define PACMAN_PATROL_Y 120              // SCREEN_HEIGHT(128) - 8px margin (was 56 on 64px-tall OLED)
 #define MAX_PATROL_PELLETS 20
 #define TIME_Y_PACMAN 16
 #define PELLET_SPACING 5
@@ -362,10 +362,6 @@ extern unsigned long lastReceived;
 extern unsigned long wifiDisconnectTime;
 extern unsigned long nextDisplayUpdate;
 extern bool wifiConnected;  // WiFi connection status for icon display
-
-// Why the device last booted, as a stable short string for /api/info. Lets a
-// user tell "it restarted" apart from "the display misbehaved" after the fact.
-const char* getResetReasonName();
 
 // Mario clock globals
 extern MarioState mario_state;
