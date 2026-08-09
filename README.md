@@ -44,6 +44,8 @@ This project is based on the excellent [SmallOLED-PCMonitor](https://github.com/
 |---|---:|
 | Touch Button | GPIO 7 |
 
+![Circuit Diagram](./Circuit.png)
+
 ## Getting Started
 
 ## Flash the firmware
